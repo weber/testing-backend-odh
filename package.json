@@ -1,0 +1,15 @@
+{
+  "name": "testing-backend-odh",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Webs <rainbluz@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "lodash": "^4.12.0",
+    "mongoose": "^4.4.17"
+  }
+}
