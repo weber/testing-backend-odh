@@ -101,33 +101,21 @@ db.once('open', function () {
        })
    });
    */
+    // поиск пользователя пользователей с определенным типом взаимоотношений
+   /*
+    man.FindUsersByRelation('573b7cb3b965fcae09298d35', {'друзья': true, 'враги': true});
 
-
-    man.model.where({'relationship.враги':'573b7cb3b965fcae09298d35'}).exec(function (err, items) {
-        items.forEach(function (data, k) {
+    man.on('find-users-relation', function (items) {
+        items.data.forEach(function (data, k) {
             console.log(data._id);
             console.log(data.lasttname);
             console.log(data.firstname);
             console.log(data.relationship);
             console.log('------------------------');
         })
+    });
+    */
 
-    })
-
-
-
-
-
-    /*man.model.find(function (err, m) {
-        m.forEach(function (item, k) {
-            console.log(item._id)
-            console.log(item.firstname)
-            console.log(item.lasttname)
-            console.log(item.relationship)
-            console.log('---------------------------------')
-        })
-
-    })*/
    /*
     relationship.model.find(function (err, rel) {
         console.log(rel)

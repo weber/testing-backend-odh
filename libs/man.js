@@ -302,9 +302,40 @@ Man.prototype.AddRelationBetweenUsersById = function (idUser, idUser2, relation,
     }
 }
 
-Man.prototype.FindUsersByRelation = function (relation, cb) {
+/**
+ * поиск пользователя пользователей с определенным типом взаимоотношений
+ * @param idUser
+ * @param relation
+ * @param cb
+ * @returns {number}
+ * @constructor
+ */
+Man.prototype.FindUsersByRelation = function (idUser, relation, cb) {
     cb = cb || function (p) {};
+    idUser = idUser || '';
+    relation = relation || {};
     let self = this;
+
+    if (!idUser && typeof idUser === 'object') return -1;
+    if (Object.keys(relation).length === 0) return -1;
+
+    let query = {};
+   // query['relationship'] = {$exists: true, $ne: []};
+    query['_id'] = {$ne: `${idUser}`};
+    for (let k in relation) {
+        if (relation[k] === true) {
+            query[`relationship.${k}`] = `${idUser}`;
+        } else if (relation[k] === false) {
+            query[`relationship.${k}`] = {$ne: `${idUser}`};
+        }
+    }
+
+    self.model.where(query).exec(function (err, items) {
+        if (err) throw  err;
+        self.emit('find-users-relation', {find: true, data: items});
+        cb(items)
+
+    })
 }
 
 function mergeAddPropName(obj1, obj2) {
