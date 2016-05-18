@@ -52,6 +52,7 @@ Man.prototype.add = function (data, cb) {
         cb(newUser.id);
     }
 }
+
 /**
  * Удаление пользователя
  * @param data
@@ -89,8 +90,8 @@ Man.prototype.addHobby = function (user_id, hobby_data, cb) {
                 }
             });
         });
-    } else {
-        // добавление новых увлечений через массив
+    } else if (typeof hobby_data === 'object') {
+        //
         this.hobby.model.find().where(hobby_data).exec(function (err, users) {
             if (users.length === 0) {
                 self.hobby.add(hobby_data, function (id) {
@@ -117,6 +118,12 @@ Man.prototype.addHobby = function (user_id, hobby_data, cb) {
     });
 }
 
+/**
+ * Удаление увлечение пользователю
+ * @param data -
+ * @param cb
+ * @returns {bool}
+ */
 Man.prototype.removeHobby = function (user_id, hobby_data, cb) {
     if (!hobby_data || !user_id) return -1;
     cb = cb || function (p) {};
@@ -137,6 +144,167 @@ Man.prototype.removeHobby = function (user_id, hobby_data, cb) {
             self.emit('removed-hobby-user', {added: t.ok});
         });
     });
+}
+
+/**
+ * Сортировака/филтр/пагинация
+ * @param criteria
+ * @param cb
+ */
+Man.prototype.list = function (criteria, cb) {
+    cb = cb || function (p) {};
+    criteria = criteria || {};
+    let self = this;
+    let result = self.model;
+
+    if (typeof criteria === 'object') {
+        if (typeof criteria.filter === 'object' && Object.keys(criteria.filter).length > 0) {
+            result =  result.find(criteria.filter);
+        } else {
+            result =  result.find({});
+        }
+
+        if (typeof criteria.orderby === 'object' && Object.keys(criteria.orderby).length > 0){
+            result =   result.sort(criteria.orderby);
+        }
+
+        if (criteria.step) {
+            result =  result.skip(criteria.step)
+        }
+
+        if (criteria.limit) {
+            result =  result.limit(criteria.limit)
+        }
+    }
+
+    result.exec(function (err, users) {
+        users.forEach(function (item, k) {
+              console.log(item.firstname);
+              console.log(item.lasttname);
+              console.log(item.hobby);
+        })
+    });
+}
+
+Man.prototype.getIdByName = function (name, cb) {
+    cb = cb || function (p) {};
+    name = name || {};
+    let self = this;
+
+    if (typeof name !== 'object' || Object.keys(name).length === 0)  return -1;
+
+    self.model.find().where(name).exec(function (err, users) {
+        let users_id = [];
+        users.forEach(function (item, k) {
+            users_id.push(item._id)
+        });
+        cb(users_id);
+    });
+}
+
+Man.prototype.addRelationship = function (idUser, relationshipUser,  cb) {
+    cb = cb || function (p) {};
+    idUser = idUser || {};
+    relationshipUser = relationshipUser || {};
+    let self = this;
+    if (idUser) {
+
+        self.model.where({_id: idUser}).update({relationship: relationshipUser}, function (err, t) {
+            self.emit('added-relation-user', {added: t.ok});
+        });
+    }
+}
+
+/**
+ * Добавление взаимоотношений между 2 пользователями
+ * @param idUser
+ * @param idUser2
+ * @param relation
+ * @param cb
+ * @constructor
+ */
+Man.prototype.AddRelationBetweenUsersById = function (idUser, idUser2, relation, cb) {
+    cb = cb || function (p) {};
+    idUser = idUser || null;
+    idUser2 = idUser2 || null;
+    let self = this;
+
+    _addRelationUser(idUser, idUser2, relation, function () {
+        _addRelationUser(idUser2, idUser, relation, function () {
+            self.emit('added-relation-users', {added: true});
+            cb();
+        });
+    });
+
+    function _addRelationUser(id_user, id_user2, new_relation, cbx) {
+        self.model.findById({_id: id_user}, function (err, user) {
+
+            if (!user) return -1;
+
+            self.relationship.model.find(function (err, rel) {
+                let _relationship = [];
+                rel.forEach(function (item, k) {
+                    _relationship.push(item.relationship);
+                });
+
+                for (let name in user.relationship[0]) {
+                    if (_.indexOf(_relationship, name)) {
+                       // console.log(name);
+                    } else {
+                        self.relationship.add({relationship: name});
+                    }
+                }
+            });
+
+            let _new_relation = {};
+            for (let k in new_relation) {
+                if (new_relation[k] === true) {
+                    _new_relation[k] = [];
+                    _new_relation[k].push(id_user2);
+                }
+
+                if (user.relationship.length > 0 && _.indexOf(user.relationship[0][k], id_user2) !== -1) {
+                     _.remove(user.relationship[0][k], function (n) {
+                        return (n !== id_user2) == 0;
+                    })
+                }
+            }
+
+            let  mergeRelationship = _new_relation;
+            if (Object.keys(mergeRelationship).length !== 0)
+                if (user.relationship.length > 0 && Object.keys(user.relationship[0]).length !== 0) {
+                    let _f = {}; {
+                    for (let k in _new_relation) {
+                        if (_new_relation[k].length > 0 || user.relationship[0][k].length > 0) {
+                            let _fa = _.uniq(_.concat(user.relationship[0][k],  _new_relation[k]));
+
+                            _f[k] = _.remove(_fa, function (n) {
+                                return (n === true || n === false || n === null) == 0;
+                            });
+                        }
+                    }
+
+                    mergeRelationship = _f;
+                }
+
+                self.model.update({_id: id_user}, {relationship: mergeRelationship}, function (err, t) {
+                    if (err) throw err;
+                    cbx(t.ok);
+                });
+            } else {
+
+                self.model.update({_id: id_user}, {relationship: user.relationship[0]}, function (err, t) {
+                    if (err) throw err;
+                    cbx(t.ok);
+                });
+            }
+        })
+    }
+}
+
+Man.prototype.FindUsersByRelation = function (relation, cb) {
+    cb = cb || function (p) {};
+    let self = this;
 }
 
 function mergeAddPropName(obj1, obj2) {
